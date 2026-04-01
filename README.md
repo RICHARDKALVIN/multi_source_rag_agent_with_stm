@@ -1,5 +1,5 @@
 
-CHAT BOT USING LANGCHAIN — PROJECT DETAILS FOR GITHUB README
+CHAT BOT AND AGENT USING LANGCHAIN — PROJECT DETAILS 
 
 
 --------------------------------------------------------------------------------
