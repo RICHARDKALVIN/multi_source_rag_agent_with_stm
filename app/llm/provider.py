@@ -1,7 +1,7 @@
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-from langgraph.prebuilt import create_agent
+from langchain.agents import create_agent
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from app.db.db_engine import db
 from app.tools.multi_source_tool import search_student_personality, search_student_records
@@ -16,7 +16,7 @@ llm = ChatGoogleGenerativeAI(
 )
 
 llm_agent = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-flash-latest",
     temperature=0,
     api_key= os.getenv("GEMINI_API_KEY"),
 
@@ -37,5 +37,6 @@ agent = create_agent(
     model=llm_agent, 
     tools=combined_tools,
     system_prompt=system_prompt
+   
 )
 

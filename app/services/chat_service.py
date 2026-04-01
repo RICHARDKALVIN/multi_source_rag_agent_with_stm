@@ -39,9 +39,8 @@ async def chat_with_rag_agent(chat_request : ChatRequest):
 
     result = await agent.ainvoke(input_state)
 
-    final_answer = result["messages"][-1].content
-
-    return final_answer
+    return "".join(
+    item["text"] for item in result["messages"][-1].content) if isinstance(result["messages"][-1].content, list) else result["messages"][-1].content
     
 
 
