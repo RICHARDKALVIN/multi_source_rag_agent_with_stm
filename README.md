@@ -60,9 +60,7 @@ Project root
 - SQL: LangChain SQLDatabase + SQLDatabaseToolkit (PostgreSQL via SQLAlchemy)
 - Data loading: CSVLoader, PyPDFLoader, RecursiveCharacterTextSplitter
 
-There is no requirements.txt in the repo root at documentation time; derive a
-full list with `pip freeze` from your environment or `pip install` the packages
-above when writing README setup steps.
+
 
 --------------------------------------------------------------------------------
 4. ENVIRONMENT VARIABLES
@@ -74,7 +72,6 @@ Required / used in code:
 - REDIS_HOST           — Redis hostname (app/core/redis.py)
 - REDIS_PORT           — Redis port, int (app/core/redis.py)
 
-README should show a .env.example with placeholder values only.
 
 --------------------------------------------------------------------------------
 5. DOCKER COMPOSE (docker-compose.yml)
@@ -83,11 +80,6 @@ Services:
 - redis: image redis:7, port 6379, AOF persistence, volume redis_data
 - chromadb: image chromadb/chroma, host port 8001 -> container 8000, persistent
   volume chroma_data
-
-Important implementation note for README:
-- app/db/chroma_db.py uses Chroma with persist_directory="./chroma_db_data"
-  (embedded/local persistence), not the chromadb Docker service HTTP client.
-  The compose chromadb service is optional unless you later wire the app to it.
 
 --------------------------------------------------------------------------------
 6. API ENDPOINTS (app/api/chat.py)
@@ -150,7 +142,7 @@ need alignment for CSVLoader — verify if loader warnings occur).
   sql_tools; system prompt describes helpful assistant with student DB access
 
 --------------------------------------------------------------------------------
-10. HOW TO RUN (SUGGESTED README SECTIONS)
+10. HOW TO RUN 
 --------------------------------------------------------------------------------
 Prerequisites:
 - Python 3.x, virtual environment
