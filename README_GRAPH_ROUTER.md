@@ -1,81 +1,151 @@
 # Graph Router README
 
-This document covers only the `graph_router` implementation in this project.
+This document explains only the `graph_router` implementation and the LangGraph flow behind it.
 
 ## Router Overview
 
-- File: `app/api/graph.py`
-- Prefix: `/graph`
-- Tag: `graph`
-- Mounted in app: `app/main.py`
+- API file: `app/api/graph.py`
+- Router object: `graph_router = APIRouter(prefix="/graph", tags=["graph"])`
+- Mounted in: `app/main.py`
+- Service entrypoint: `app/services/lang_graph_service.py`
+- Graph definition: `app/graph/graph.py`
 
-`graph_router` exposes one endpoint that builds an `AgentState` and sends it to the LangGraph service.
+The router exposes one endpoint that converts incoming query params to `AgentState`, then executes a compiled LangGraph and returns the final `answer`.
 
 ## Endpoint
 
 ### POST `/graph/get_weight_or_personality`
 
-Calls:
-- `app.api.graph.get_weight_or_personality_api()`
-- which builds `AgentState`
-- then calls `app.services.lang_graph_service.get_weight_or_personality(state)`
+Handler:
+- `get_weight_or_personality_api(query: str, key_word: str)`
 
-Request parameters (query params):
-- `query` (string): user question
-- `key_word` (string): routing selector, expected values:
-  - `record`
-  - `personality`
+Request format:
+- Query params (not JSON body):
+  - `query`: user question
+  - `key_word`: route selector (`record` or `personality`)
+
+Runtime chain:
+1. Build `AgentState` in API layer.
+2. Call `get_weight_or_personality(state)` service.
+3. Service runs `await app.ainvoke(state)` on compiled graph.
+4. Return `ans["answer"]` to client.
 
 Response:
-- Returns a plain string answer (`ans["answer"]`) from the LangGraph execution.
+- Plain text string (final answer from graph state).
 
-## State Shape
+## AgentState Contract
 
-`AgentState` is defined in `app/schemas/graph_state.py` as:
+Defined in `app/schemas/graph_state.py`:
 - `query: str`
 - `key_word: str`
 - `tool_to_call: str`
 - `chunks: str`
 - `answer: str`
 
-The API initializes it as:
-- `query=<incoming query>`
-- `key_word=<incoming key_word>`
-- `answer=""`
+Initial state created by API:
+- `query=<request query>`
+- `key_word=<request key_word>`
 - `tool_to_call=""`
 - `chunks=""`
+- `answer=""`
 
-## Internal Graph Flow (used by this router)
+## LangGraph Nodes (What Each Node Does)
 
-The router triggers `app.services.lang_graph_service`, which invokes the compiled graph in `app/graph/graph.py`.
+All nodes are implemented in `app/graph/nodes/graph_nodes.py`.
 
-Graph nodes:
-- `router` -> decides branch from `key_word`
-- `record` -> fetches student record chunks
-- `personality` -> fetches personality chunks
-- `llm` -> creates final answer from chunks
+### 1) `router_node(state)`
+- Purpose: lightweight intent router based on `state["key_word"]`.
+- Logic:
+  - `record` -> sets `tool_to_call="record"`
+  - `personality` -> sets `tool_to_call="personality"`
+  - otherwise -> sets `tool_to_call="none"`
+- Output state update: `{"tool_to_call": ...}`
 
-Routing behavior:
-- `key_word == "record"` -> `record -> llm`
-- `key_word == "personality"` -> `personality -> llm`
-- anything else -> `END` (no LLM answer generation path)
+### 2) `record_node(state)`
+- Purpose: retrieve record-related chunks from vector store.
+- Calls: `search_student_records(state["query"])` from `app/tools/search_functions.py`
+- Retrieval source: `csv_store` (Chroma collection for CSV data).
+- Output state update: `{"chunks": "<retrieved text>"}`.
+
+### 3) `personality_node(state)`
+- Purpose: retrieve personality-related chunks from vector store.
+- Calls: `search_student_personality(state["query"])` from `app/tools/search_functions.py`
+- Retrieval source: `pdf_store` (Chroma collection for PDF data).
+- Output state update: `{"chunks": "<retrieved text>"}`.
+
+### 4) `llm_node(state)`
+- Purpose: generate final answer using retrieved context.
+- Prompt pattern:
+  - query + `state["chunks"]` in a simple instruction template.
+- Model path:
+  - `llm_agent` from `app/llm/provider.py`
+  - output parsed using `StrOutputParser()`
+- Output state update: `{"answer": "<final model answer>"}`.
+
+## Graph Wiring and Flow
+
+Graph is assembled in `app/graph/graph.py` using `StateGraph(AgentState)` with:
+- Nodes: `router`, `record`, `personality`, `llm`
+- Entry point: `router`
+- Conditional edge from `router` decided by `get_weight_or_personality(...)` in `app/graph/nodes/graph_helper_functions.py`
+- Static edges:
+  - `record -> llm`
+  - `personality -> llm`
+
+### Decision Function
+
+`get_weight_or_personality(state)` returns:
+- `"record"` when `key_word == "record"`
+- `"personality"` when `key_word == "personality"`
+- `END` otherwise
+
+### End-to-End Flow Diagram
+
+```text
+POST /graph/get_weight_or_personality
+        |
+        v
+build AgentState in API
+        |
+        v
+service -> graph app.ainvoke(state)
+        |
+        v
+      router
+   /     |      \
+record personality END
+  |         |
+  v         v
+  llm <-----+
+   |
+   v
+return state["answer"]
+```
+
+## Data and Tool Dependencies Used by Nodes
+
+- `record_node` and `personality_node` use `app/tools/search_functions.py`.
+- Search functions query Chroma stores from `app/db/chroma_db.py`:
+  - `csv_store` (`collection_name="csv_data"`)
+  - `pdf_store` (`collection_name="pdf_documents"`)
+- Both return a joined text block; fallback: `"No matching student records found."`
 
 ## Example Calls
 
-### Record branch
+### Record path
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/graph/get_weight_or_personality?query=What%20is%20John%27s%20maths%20score%3F&key_word=record"
 ```
 
-### Personality branch
+### Personality path
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/graph/get_weight_or_personality?query=What%20are%20the%20student%27s%20goals%3F&key_word=personality"
 ```
 
-## Notes and Constraints
+## Important Notes
 
-- `query` and `key_word` are query parameters, not JSON body fields.
-- `key_word` must be exactly `record` or `personality` to traverse tool + LLM nodes.
-- If `key_word` is any other value, the graph ends early and may not return a meaningful answer.
+- This endpoint currently accepts only query parameters.
+- Only `record` and `personality` trigger retrieval + LLM execution.
+- Any other `key_word` routes to `END`; in that case, `answer` may be empty and the API can return a blank result.
