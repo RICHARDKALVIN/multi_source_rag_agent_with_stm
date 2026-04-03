@@ -1,0 +1,52 @@
+# 🔐 Environment variables (VERY IMPORTANT)
+.env
+.env.*
+*.env
+
+# 🐍 Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 📦 Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# 🧪 Testing / coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# 📊 Logs & temp files
+*.log
+*.tmp
+*.swp
+
+# 📁 Build / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 🧰 IDE / Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 🖥️ OS generated files
+.DS_Store
+Thumbs.db
+
+# 📄 Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# 🔑 Secrets / keys
+*.pem
+*.key
+
+# 📄 Misc (optional - adjust if needed)
+PROJECT_DETAILS_FOR_README.txt
