@@ -25,8 +25,17 @@ class RedisSTM:
 
     async def get_messages(self):
         msgs =  await redis_client.lrange(self.msg_key, 0, -1)
-        return [json.loads(m) for m in msgs] or []
+        stm_messages_ =  [json.loads(m) for m in msgs] or []
+        formatted_stm_messages = "\n".join(
+            f"{m['role'].upper()}: {m['content']}" for m in stm_messages_
+        )
+        stm_messages_re = [json.loads(m) for m in msgs][-4:] or []
+        messages_re = "\n".join(
+            f"{m['role'].upper()}: {m['content']}" for m in stm_messages_re
+        )
 
+        return formatted_stm_messages,messages_re
+    
     async def get_summary(self):
         return await redis_client.get(self.summary_key) or ""
 
