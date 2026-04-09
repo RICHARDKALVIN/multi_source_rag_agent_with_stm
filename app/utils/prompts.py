@@ -1,9 +1,7 @@
 
 def build_prompt(summary, stm_messages, ltm_memories, user_query):
 
-    formatted_stm_messages = "\n".join(
-            f"{m['role'].upper()}: {m['content']}" for m in stm_messages
-        )
+   
     
     prompt = f"""
     You are a helpful assistant.
@@ -24,7 +22,7 @@ def build_prompt(summary, stm_messages, ltm_memories, user_query):
     {ltm_memories}
 
     Recent conversation:
-    {formatted_stm_messages}
+    {stm_messages}
 
     User question:
     {user_query}

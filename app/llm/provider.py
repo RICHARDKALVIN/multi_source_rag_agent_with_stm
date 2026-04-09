@@ -21,6 +21,12 @@ llm_agent = ChatGoogleGenerativeAI(
     api_key= os.getenv("GEMINI_API_KEY"),
 
 )
+rewiter_llm = ChatGoogleGenerativeAI(
+    model="gemini-3.1-flash-lite-preview",
+    temperature=0,
+    api_key= os.getenv("GEMINI_API_KEY"),
+    max_output_tokens=100
+)
 
 toolkit = SQLDatabaseToolkit(db=db, llm=llm_agent)
 sql_tools = toolkit.get_tools()

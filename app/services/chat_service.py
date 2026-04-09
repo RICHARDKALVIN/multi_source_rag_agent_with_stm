@@ -5,6 +5,8 @@ from app.utils.prompts import build_prompt
 from app.core.redis import redis_client
 from langchain_core.output_parsers import StrOutputParser
 from app.llm.provider import agent
+from app.utils.query_util import get_re_written_query
+from loguru import logger
 
 async def chat(chat_request : ChatRequest):
 
@@ -13,14 +15,20 @@ async def chat(chat_request : ChatRequest):
     count_key = f"count:messages:{chat_request.user_id}"
     
 
-    stm = await redisSTM.get_messages()
+    stm,re_messgaes = await redisSTM.get_messages()
 
     summary = await redisSTM.get_summary()
 
-    prompt = build_prompt(summary, stm, "none", chat_request.message)
+    re_written_query = await  get_re_written_query(chat_request.message,re_messgaes )
+
+    prompt = build_prompt(summary, stm, "none", re_written_query)
+
+    logger.info(f"prompt: {prompt}")
 
     response_text = await (llm | StrOutputParser()).ainvoke(prompt)
-    await redisSTM.add_message("user", chat_request.message)
+
+    logger.info(f"response_text: {response_text}")
+    await redisSTM.add_message("user",  re_written_query)
     await redisSTM.add_message("assistant", response_text)
 
     new_count = await redis_client.incr(count_key)
